@@ -55,32 +55,7 @@ PATH=$PATH:$build_dir/vendor/node/bin
 # Run subsequent node/npm commands from the build path
 cd $build_dir
 
-# If node_modules directory is checked into source control then
-# rebuild any native deps. Otherwise, restore from the build cache.
-if test -d $build_dir/node_modules; then
-  status "Found existing node_modules directory; skipping cache"
-  status "Rebuilding any native dependencies"
-  npm rebuild 2>&1 | indent
-elif test -d $cache_dir/node/node_modules; then
-  status "Restoring node_modules directory from cache"
-  cp -r $cache_dir/node/node_modules $build_dir/
 
-  status "Pruning cached dependencies not specified in package.json"
-  npm prune 2>&1 | indent
-
-  if test -f $cache_dir/node/.heroku/node-version && [ $(cat $cache_dir/node/.heroku/node-version) != "$node_version" ]; then
-    status "Node version changed since last build; dumping cached modules"
-    rm -r $build_dir/node_modules
-  fi
-
-fi
-
-# Handle npm's new cert bug
-# http://blog.npmjs.org/post/78085451721/npms-self-signed-certificate-is-no-more
-if [ ! -f "$build_dir/.npmrc" ]; then
-  status "Writing a custom .npmrc to circumvent npm bugs"
-  echo "ca=" > "$build_dir/.npmrc"
-fi
 
 # Scope config var availability only to `npm install`
 (
@@ -103,6 +78,33 @@ fi
     # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
     ssh -oStrictHostKeyChecking=no -T git@github.com || true
   fi  
+
+  # If node_modules directory is checked into source control then
+  # rebuild any native deps. Otherwise, restore from the build cache.
+  if test -d $build_dir/node_modules; then
+    status "Found existing node_modules directory; skipping cache"
+    status "Rebuilding any native dependencies"
+    npm rebuild 2>&1 | indent
+  elif test -d $cache_dir/node/node_modules; then
+    status "Restoring node_modules directory from cache"
+    cp -r $cache_dir/node/node_modules $build_dir/
+  
+    status "Pruning cached dependencies not specified in package.json"
+    npm prune 2>&1 | indent
+  
+    if test -f $cache_dir/node/.heroku/node-version && [ $(cat $cache_dir/node/.heroku/node-version) != "$node_version" ]; then
+      status "Node version changed since last build; dumping cached modules"
+      rm -r $build_dir/node_modules
+    fi
+  
+  fi
+
+# Handle npm's new cert bug
+# http://blog.npmjs.org/post/78085451721/npms-self-signed-certificate-is-no-more
+if [ ! -f "$build_dir/.npmrc" ]; then
+  status "Writing a custom .npmrc to circumvent npm bugs"
+  echo "ca=" > "$build_dir/.npmrc"
+fi
 
   status "Installing dependencies"
   # Make npm output to STDOUT instead of its default STDERR
