@@ -268,8 +268,6 @@ if [ "$GIT_SSH_KEY" != "" ]; then
   export GIT_SSH_KEY=0
 fi
 
-remove_git_ssh_key | output "$LOG_FILE"
-
 summarize_build() {
   if $NODE_VERBOSE; then
     list_dependencies "$BUILD_DIR"
