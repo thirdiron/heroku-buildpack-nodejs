@@ -189,7 +189,7 @@ restore_cache | output "$LOG_FILE"
 
 setup_git_ssh_key() {
   if [ "$GIT_SSH_KEY" != "" ]; then   
-    status "Detected SSH key for git. Launching ssh-agent and loading key"
+    echo "Detected SSH key for git. Launching ssh-agent and loading key"
     echo $GIT_SSH_KEY | base64 --decode > id_rsa
 
     # launch ssh-agent, we'll use it to serve our ssh key
