@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # TODO: Merge these with the output helpers in buildpack-stdlib:
 # https://github.com/heroku/buildpack-stdlib
 
@@ -23,6 +25,15 @@ output() {
 
 header() {
   echo "" || true
+  echo "-----> $*" || true
+}
+
+bright_header() {
+  echo "" || true
+  echo -e "\033[1;33m-----> $* \033[0m"
+}
+
+header_skip_newline() {
   echo "-----> $*" || true
 }
 

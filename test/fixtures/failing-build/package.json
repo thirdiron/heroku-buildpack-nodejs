@@ -6,13 +6,10 @@
     "type" : "git",
     "url" : "http://github.com/example/example.git"
   },
-  "dependencies": {
-    "hashish": "*"
-  },
   "engines": {
-    "node": "0.10.38"
+    "node": "8.x"
   },
   "scripts": {
-    "postinstall": "exit 1"
+    "heroku-postbuild": "exit 1"
   }
 }
