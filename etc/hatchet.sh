@@ -2,44 +2,25 @@
 
 set -e
 
-if [ "$CIRCLECI" == "true" ] && [ -n "$CI_PULL_REQUEST" ]; then
-  if [ "$CIRCLE_PR_USERNAME" != "heroku" ]; then
-    echo "Skipping integration tests on forked PR."
-    exit 0
-  fi
-fi
+ci_repo_owner=${CIRCLE_PROJECT_USERNAME:-${GITHUB_REPOSITORY_OWNER}}
+ci_repo_name=${CIRCLE_PROJECT_REPONAME:-${GITHUB_REPOSITORY}}
+ci_branch=${CIRCLE_BRANCH:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}
 
-if [ "$TRAVIS" == "true" ] && [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-  if [ "$TRAVIS_PULL_REQUEST_SLUG" != "heroku/heroku-buildpack-nodejs" ]; then
-    echo "Skipping integration tests on forked PR."
-    exit 0
-  fi
-fi
+[ "$ci_repo_owner" != "heroku" ] && echo "Run tests manually for forked PRs." && exit 0
 
-if [ -z "$HEROKU_API_KEY" ]; then
-  echo ""
-  echo "ERROR: Missing \$HEROKU_API_KEY."
-  echo ""
-  echo "NOTE: You can create token this by running: heroku authorizations:create --description \"For Travis\""
-  echo ""
-  exit 1
-fi
-
-if [ -n "$CIRCLE_BRANCH" ]; then
-  export HATCHET_BUILDPACK_BRANCH="$CIRCLE_BRANCH"
-elif [ -n "$TRAVIS_PULL_REQUEST_BRANCH" ]; then
-  export IS_RUNNING_ON_TRAVIS=true
-  export HATCHET_BUILDPACK_BRANCH="$TRAVIS_PULL_REQUEST_BRANCH"
+if [[ "$ci_repo_name" == *nodebin ]]; then
+  HATCHET_BUILDPACK_BRANCH="main"
+elif [ -n "$ci_branch" ]; then
+  HATCHET_BUILDPACK_BRANCH="$ci_branch"
 else
-  export HATCHET_BUILDPACK_BRANCH=$(git name-rev HEAD 2> /dev/null | sed 's#HEAD\ \(.*\)#\1#' | sed 's#tags\/##')
+  HATCHET_BUILDPACK_BRANCH=$(git name-rev HEAD 2> /dev/null | sed 's#HEAD\ \(.*\)#\1#' | sed 's#tags\/##')
 fi
 
-gem install bundler
-bundle install
+export HATCHET_BUILDPACK_BRANCH
 
 export HATCHET_RETRIES=3
-export HATCHET_APP_LIMIT=20
+export HATCHET_APP_LIMIT=100
 export HATCHET_DEPLOY_STRATEGY=git
 export HATCHET_BUILDPACK_BASE="https://github.com/heroku/heroku-buildpack-nodejs"
 
-bundle exec rspec "$@"
+bundle exec parallel_split_test "$@"

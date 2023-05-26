@@ -8,7 +8,7 @@ TAG_NAME=${1:-}
 PLUGIN_DIR=$(dirname $0)
 
 handle_failure() {
-    echo "Failure running script."
+    echo "Failure running script on line $1."
 
     
     echo "This may be rate-limiting from Github if you've run this script a few times. Here is the rate limit response:"
@@ -34,14 +34,16 @@ download() {
 
 delete_old_plugin() {
     local dir=${1}
-    rm -f "$dir/heroku-nodejs-plugin-node-11.sha512"
-    rm -f "$dir/heroku-nodejs-plugin-node-11.tar.gz"
-    rm -f "$dir/heroku-nodejs-plugin-node-10.sha512"
-    rm -f "$dir/heroku-nodejs-plugin-node-10.tar.gz"
-    rm -f "$dir/heroku-nodejs-plugin-node-8.sha512"
-    rm -f "$dir/heroku-nodejs-plugin-node-8.tar.gz"
-    rm -f "$dir/heroku-nodejs-plugin-node-9.sha512"
-    rm -f "$dir/heroku-nodejs-plugin-node-9.tar.gz"
+    rm -f "$dir/heroku-nodejs-plugin-node-14.sha512"
+    rm -f "$dir/heroku-nodejs-plugin-node-14.tar.gz"
+    rm -f "$dir/heroku-nodejs-plugin-node-16.sha512"
+    rm -f "$dir/heroku-nodejs-plugin-node-16.tar.gz"
+    rm -f "$dir/heroku-nodejs-plugin-node-18.sha512"
+    rm -f "$dir/heroku-nodejs-plugin-node-18.tar.gz"
+    rm -f "$dir/heroku-nodejs-plugin-node-19.sha512"
+    rm -f "$dir/heroku-nodejs-plugin-node-19.tar.gz"
+    rm -f "$dir/heroku-nodejs-plugin-node-20.sha512"
+    rm -f "$dir/heroku-nodejs-plugin-node-20.tar.gz"
     rm -f "$dir/version"
 }
 
@@ -49,21 +51,25 @@ download_assets_for_release() {
     local tag=${1}
     local dir=${2}
 
-    # Node 8
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-8-$tag.sha512" "$dir/heroku-nodejs-plugin-node-8.sha512"
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-8-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-8.tar.gz"
+    # Node 14
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-14-$tag.sha512" "$dir/heroku-nodejs-plugin-node-14.sha512"
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-14-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-14.tar.gz"
 
-    # Node 9
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-9-$tag.sha512" "$dir/heroku-nodejs-plugin-node-9.sha512"
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-9-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-9.tar.gz"
+    # Node 16
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-16-$tag.sha512" "$dir/heroku-nodejs-plugin-node-16.sha512"
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-16-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-16.tar.gz"
 
-    # Node 10 
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-10-$tag.sha512" "$dir/heroku-nodejs-plugin-node-10.sha512"
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-10-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-10.tar.gz"
+    # Node 18
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-18-$tag.sha512" "$dir/heroku-nodejs-plugin-node-18.sha512"
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-18-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-18.tar.gz"
 
-    # Node 11
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-11-$tag.sha512" "$dir/heroku-nodejs-plugin-node-11.sha512"
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-11-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-11.tar.gz"
+    # Node 19
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-19-$tag.sha512" "$dir/heroku-nodejs-plugin-node-19.sha512"
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-19-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-19.tar.gz"
+
+    # Node 20
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-20-$tag.sha512" "$dir/heroku-nodejs-plugin-node-20.sha512"
+    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-20-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-20.tar.gz"
 }
 
 test_hash() {
@@ -81,7 +87,7 @@ test_hash() {
     fi
 }
 
-trap 'handle_failure' ERR
+trap 'handle_failure ${LINENO}' ERR
 
 if [[ -z $TAG_NAME ]]; then
     TAG_NAME=$(get_latest_release)
@@ -96,9 +102,10 @@ echo $TAG_NAME > "$PLUGIN_DIR/version"
 
 echo "Plugins downloaded"
 
-test_hash 8 $PLUGIN_DIR
-test_hash 9 $PLUGIN_DIR
-test_hash 10 $PLUGIN_DIR
-test_hash 11 $PLUGIN_DIR
+test_hash 14 $PLUGIN_DIR
+test_hash 16 $PLUGIN_DIR
+test_hash 18 $PLUGIN_DIR
+test_hash 19 $PLUGIN_DIR
+test_hash 20 $PLUGIN_DIR
 
 echo "Done"

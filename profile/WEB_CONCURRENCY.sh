@@ -1,14 +1,27 @@
 #!/usr/bin/env bash
 
 calculate_concurrency() {
-  WEB_CONCURRENCY=${WEB_CONCURRENCY-$((MEMORY_AVAILABLE/WEB_MEMORY))}
-  if (( WEB_CONCURRENCY < 1 )); then
-    WEB_CONCURRENCY=1
-  elif (( WEB_CONCURRENCY > 200 )); then
+  local available=$1
+  local web_memory=$2
+
+  echo $(($available/$web_memory))
+}
+
+validate_concurrency() {
+  local concurrency=$1
+  local ret=0
+
+  if (( concurrency < 1 )); then
+    concurrency=1
+    ret=1
+  elif (( concurrency > 200 )); then
     # Ex: This will happen on Dokku on DO
-    WEB_CONCURRENCY=1
+    concurrency=1
+    ret=2
   fi
-  echo $WEB_CONCURRENCY
+
+  echo "$concurrency"
+  return $ret
 }
 
 log_concurrency() {
@@ -26,24 +39,47 @@ detect_memory() {
   fi
 }
 
-warn_bad_web_concurrency() {
-  local concurrency=$((MEMORY_AVAILABLE/WEB_MEMORY))
-  if [ "$concurrency" -gt "200" ]; then
-    echo "Could not determine a reasonable value for WEB_CONCURRENCY.
-This is likely due to running the Heroku NodeJS buildpack on a non-Heroku
-platform.
+bound_memory() {
+  local detected=$1
+  local max_detected_memory=14336
 
-WEB_CONCURRENCY has been set to 1. Please review whether this value is
-appropriate for your application."
-    echo ""
+  # The hardcoded value is 16GB of memory
+  if (( detected > max_detected_memory )); then
+    echo "$max_detected_memory"
+  else
+    echo "$detected"
   fi
 }
 
-export MEMORY_AVAILABLE=${MEMORY_AVAILABLE-$(detect_memory 512)}
-export WEB_MEMORY=${WEB_MEMORY-512}
-export WEB_CONCURRENCY=$(calculate_concurrency)
+warn_high_web_concurrency() {
+  echo "Could not determine a reasonable value for WEB_CONCURRENCY.
+This is likely due to running the Heroku NodeJS buildpack on a non-Heroku
+platform.
 
-warn_bad_web_concurrency
+WEB_CONCURRENCY has been set to ${1}. Please review whether this value is
+appropriate for your application.
+"
+}
+
+DETECTED=$(detect_memory 512)
+export MEMORY_AVAILABLE=${MEMORY_AVAILABLE-$(bound_memory $DETECTED)}
+export WEB_MEMORY=${WEB_MEMORY-512}
+WEB_CONCURRENCY=${WEB_CONCURRENCY-$(calculate_concurrency "$MEMORY_AVAILABLE" "$WEB_MEMORY")}
+validated_concurrency=$(validate_concurrency "$WEB_CONCURRENCY")
+case $? in # validate_concurrency exit code indicates result
+  1)
+    # too low
+    export WEB_CONCURRENCY=$validated_concurrency
+    ;;
+  2)
+    # too high
+    warn_high_web_concurrency "$validated_concurrency" "$WEB_CONCURRENCY"
+    export WEB_CONCURRENCY=$validated_concurrency
+    ;;
+  0)
+    export WEB_CONCURRENCY
+    ;;
+esac
 
 if [[ "${LOG_CONCURRENCY+isset}" && "$LOG_CONCURRENCY" == "true" ]]; then
   log_concurrency
