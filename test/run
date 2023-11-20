@@ -179,7 +179,7 @@ testYarnRun() {
 }
 
 testNoVersion() {
-  local default_version="18"
+  local default_version="20"
   compile "no-version"
   assertCaptured "engines.node (package.json):  unspecified"
   assertCaptured "Resolving node version ${default_version}.x"
@@ -780,8 +780,7 @@ testYarn4() {
   assertCaptured "Running 'yarn install' with yarn.lock"
   assertCaptured "Build script check"
   assertCaptured "Running 'yarn heroku prune'"
-  assertCaptured "@types-node-npm-16.11.26-6163d95b7d-8c7a9a6d08.zip appears to be unused - removing"
-  assertCaptured "uuid-npm-9.0.0-46c41e3e43-e1f76aff37.zip appears to be unused - removing"
+  assertCaptured "- @types/node@npm:16.11.26, uuid@npm:9.0.0"
   assertCapturedSuccess
 }
 ###
@@ -838,6 +837,13 @@ testNpmVersionSpecific() {
   assertCaptured "Bootstrapping npm 2.1.11"
   assertNotCaptured "WARNING"
   assertCapturedSuccess
+}
+
+testNpmVersionIncompatible() {
+  compile "npm-version-incompat"
+  assertCaptured "Unable to install npm 10.x"
+  assertCaptured "Is npm 10.x compatible with this Node.js version?"
+  assertCapturedError
 }
 
 testFailingBuild() {
@@ -1139,7 +1145,7 @@ testNodeEnvNpmConfigProductionFalse() {
   assertCaptured "preinstall: production"
   assertCaptured "postinstall: production"
   assertCaptured "heroku-postbuild: production"
-  assertCapturedSuccess
+  assertEquals "Expected successful exit code" "0" "${RETURN}"
 }
 
 # Avoid this issue
@@ -1519,6 +1525,13 @@ testNpmCiCachingWhenUseNpmInstallIsFalse() {
   assertCaptured "Caching build"
   assertCaptured "- npm cache"
   assertNotCaptured "npm http fetch GET"
+  assertCapturedSuccess
+}
+
+testUseNpm10() {
+  compile "use-npm-v10"
+  assertNotCaptured "Detected package-lock.json: defaulting npm to version 5.x.x"
+  assertCaptured "Using default npm version: 10"
   assertCapturedSuccess
 }
 

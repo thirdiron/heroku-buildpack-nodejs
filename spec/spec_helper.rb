@@ -26,7 +26,8 @@ end
 def successful_body(app, options = {})
   retry_limit = options[:retry_limit] || 100
   path = options[:path] ? "/#{options[:path]}" : ''
-  Excon.get("http://#{app.name}.herokuapp.com#{path}",
+  web_url = app.platform_api.app.info(app.name).fetch("web_url")
+  Excon.get("#{web_url}#{path}",
               idempotent:     true,
               expects:        200,
               retry_interval: 0.5,
@@ -77,7 +78,7 @@ def resolve_all_supported_node_versions(options = {})
 end
 
 def version_supports_metrics(version)
-  SemVersion.new(version).satisfies?('>= 10.0.0') && SemVersion.new(version).satisfies?('< 21.0.0')
+  SemVersion.new(version).satisfies?('>= 10.0.0') && SemVersion.new(version).satisfies?('< 22.0.0')
 end
 
 def get_test_versions
@@ -86,7 +87,7 @@ def get_test_versions
   elsif ENV['TEST_ALL_NODE_VERSIONS'] == 'true'
     versions = resolve_all_supported_node_versions()
   else
-    versions = resolve_node_version(['14.x', '16.x', '18.x', '19.x', '20.x'])
+    versions = resolve_node_version(['18.x', '19.x', '20.x', '21.x'])
   end
   puts("Running tests for Node versions: #{versions.join(', ')}")
   versions
