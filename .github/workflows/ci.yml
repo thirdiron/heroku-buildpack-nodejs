@@ -11,12 +11,13 @@ permissions:
 jobs:
 
   unit-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: heroku/heroku:${{ matrix.stack_number }}-build
+      options: --user root
     strategy:
       matrix:
-        stack_number: ["20", "22"]
+        stack_number: ["20", "22", "24"]
     env:
       STACK: heroku-${{ matrix.stack_number }}
     steps:
@@ -26,12 +27,13 @@ jobs:
         run: test/unit
 
   functional-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: heroku/heroku:${{ matrix.stack_number }}-build
+      options: --user root
     strategy:
       matrix:
-        stack_number: ["20", "22"]
+        stack_number: ["20", "22", "24"]
     env:
       STACK: heroku-${{ matrix.stack_number }}
     steps:
@@ -41,7 +43,7 @@ jobs:
         run: test/run
 
   hatchet-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
       HEROKU_API_USER: ${{ secrets.HEROKU_API_USER }}
@@ -56,3 +58,19 @@ jobs:
           bundler-cache: true
       - name: Run hatchet tests
         run: make hatchet
+
+  metrics-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # check the minimum node version supported by the metrics script and the latest node version
+        # (assumes the versions between have backwards-compatible APIs)
+        version: [14.10.0, latest]
+    name: Test Metrics (${{ matrix.version }})
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.version }}
+      - run: npx mocha metrics/test/metrics.spec.cjs
