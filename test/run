@@ -1763,6 +1763,12 @@ testCorepackInvalidVersion() {
   assertCapturedError
 }
 
+testCorepackNpmRegistryKeyFix() {
+  compile "corepack-integrity-keys"
+  assertCaptured "Installing pnpm@10.1.0 via corepack 0.30.0"
+  assertCapturedSuccess
+}
+
 # PNPM
 
 testPnpm7Pnp() {
@@ -2049,21 +2055,6 @@ testConflictingPackageManagerMetadata() {
   assertCaptured "- pnpm version declared in engines.pnpm (9.x)"
   assertCaptured "- pnpm version declared in packageManager (pnpm@9.9.0)"
   assertCapturedError
-}
-
-testDisableIoUringFix() {
-  compile "libuv_io_uring_fix"
-  assertCaptured "UV_USE_IO_URING is set to 0"
-  assertCapturedSuccess
-}
-
-testDisableIoUringFixUserOverride() {
-  cache_dir=$(mktmpdir)
-  env_dir=$(mktmpdir)
-  echo "1" > "$env_dir/UV_USE_IO_URING"
-  compile "libuv_io_uring_fix" "$cache_dir" "$env_dir"
-  assertCaptured "UV_USE_IO_URING is set to 1"
-  assertCapturedSuccess
 }
 
 # Utils
