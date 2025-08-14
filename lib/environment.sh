@@ -56,12 +56,6 @@ list_node_config() {
     echo "npm scripts will see NODE_ENV=production (not '${NODE_ENV}')"
     echo "https://docs.npmjs.com/misc/config#production"
   fi
-
-  if [ "$NPM_CONFIG_PRODUCTION" == "true" ]; then
-    mcount "npm-config-production-true"
-  elif [ "$NPM_CONFIG_PRODUCTION" == "false" ]; then
-    mcount "npm-config-production-false"
-  fi
 }
 
 export_env_dir() {
@@ -106,5 +100,9 @@ write_export() {
   if [ -w "$bp_dir" ]; then
     echo "export PATH=\"$build_dir/.heroku/node/bin:$build_dir/.heroku/yarn/bin:\$PATH:$build_dir/node_modules/.bin\"" > "$bp_dir/export"
     echo "export NODE_HOME=\"$build_dir/.heroku/node\"" >> "$bp_dir/export"
+    # shellcheck disable=SC2016
+    echo 'export NODE_OPTIONS=${NODE_OPTIONS:-"--max_old_space_size=2560"}' >> "$bp_dir/export"
+    # ensure corepack installed binaries are findable by downstream buildpacks
+    echo "export COREPACK_HOME=\"$build_dir/.heroku/corepack\"" >> "$bp_dir/export"
   fi
 }
