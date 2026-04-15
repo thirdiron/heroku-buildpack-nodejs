@@ -45,7 +45,6 @@ fail_invalid_package_json() {
 
   if "$is_invalid"; then
     error "Unable to parse package.json"
-    mcount 'failures.parse.package-json'
     meta_set "failure" "invalid-package-json"
     header "Build failed"
     failure_message
@@ -55,7 +54,6 @@ fail_invalid_package_json() {
 
 fail_dot_heroku() {
   if [ -f "${1:-}/.heroku" ]; then
-    mcount "failures.dot-heroku"
     meta_set "failure" "dot-heroku"
     header "Build failed"
     warn "The directory .heroku could not be created
@@ -71,7 +69,6 @@ fail_dot_heroku() {
 
 fail_dot_heroku_node() {
   if [ -f "${1:-}/.heroku/node" ]; then
-    mcount "failures.dot-heroku-node"
     meta_set "failure" "dot-heroku-node"
     header "Build failed"
     warn "The directory .heroku/node could not be created
@@ -91,7 +88,6 @@ fail_iojs_unsupported() {
   iojs_engine=$(read_json "$build_dir/package.json" ".engines.iojs")
 
   if [ -n "$iojs_engine" ]; then
-    mcount "failures.iojs-unsupported"
     meta_set "failure" "iojs-unsupported"
     warn "io.js no longer supported
 
@@ -135,7 +131,6 @@ fail_multiple_lockfiles() {
 
   if (( "${#detected_package_managers[*]}" > 1 )); then
     readarray -td '' package_managers_sorted < <(printf '%s\0' "${detected_package_managers[@]}" | sort -z --ignore-case)
-    mcount "failures.multiple-lock-files"
     meta_set "failure" "multiple-lock-files"
     header "Build failed"
     warn "Multiple lockfiles found
@@ -155,7 +150,6 @@ fail_multiple_lockfiles() {
   fi
 
   if $has_modern_lockfile && [ -f "${1:-}/npm-shrinkwrap.json" ]; then
-    mcount "failures.shrinkwrap-lock-file-conflict"
     meta_set "failure" "shrinkwrap-lock-file-conflict"
     header "Build failed"
     warn "Multiple lockfiles conflicting with npm-shrinkwrap.json
@@ -183,7 +177,6 @@ fail_yarn_outdated() {
 
   if grep -qi 'error .install. has been replaced with .add. to add new dependencies' "$log_file"; then
     yarn_engine=$(yarn --version)
-    mcount "failures.outdated-yarn"
     meta_set "failure" "outdated-yarn"
     echo ""
     warn "Outdated Yarn version: $yarn_engine
@@ -204,7 +197,6 @@ fail_yarn_outdated() {
 fail_yarn_lockfile_outdated() {
   local log_file="$1"
   if grep -qi 'Your lockfile needs to be updated' "$log_file"; then
-    mcount "failures.outdated-yarn-lockfile"
     meta_set "failure" "outdated-yarn-lockfile"
     echo ""
     warn "Outdated Yarn lockfile
@@ -265,7 +257,6 @@ fail_node_install() {
 
   if grep -qi 'Could not find Node version corresponding to version requirement' "$log_file"; then
     node_engine=$(read_json "$build_dir/package.json" ".engines.node")
-    mcount "failures.invalid-node-version"
     meta_set "failure" "invalid-node-version"
     echo ""
     warn "No matching version found for Node: $node_engine
@@ -299,7 +290,6 @@ fail_yarn_install() {
 
   if grep -qi 'Could not find Yarn version corresponding to version requirement' "$log_file"; then
     yarn_engine=$(read_json "$build_dir/package.json" ".engines.yarn")
-    mcount "failures.invalid-yarn-version"
     meta_set "failure" "invalid-yarn-version"
     echo ""
     warn "No matching version found for Yarn: $yarn_engine
@@ -331,7 +321,6 @@ fail_yarn_install() {
 fail_invalid_semver() {
   local log_file="$1"
   if grep -qi 'Error: Invalid semantic version' "$log_file"; then
-    mcount "failures.invalid-semver-requirement"
     meta_set "failure" "invalid-semver-requirement"
     echo ""
     warn "Invalid semver requirement
@@ -363,7 +352,6 @@ fail_using_yarn2_with_yarn_production_environment_variable_set() {
       skip_pruning=true
     fi
 
-    mcount "failures.yarn2-with-yarn-production-env-set"
     meta_set "failure" "yarn2-with-yarn-production-env-set"
     echo ""
     warn "Legacy Yarn 1.x configuration present:
@@ -381,7 +369,6 @@ fail_missing_yarnrc_yml() {
   local build_dir="$1"
 
   if [[ ! -f "$build_dir/.yarnrc.yml" ]]; then
-    mcount "failures.missing-yarnrc-yml"
     meta_set "failure" "missing-yarnrc-yml"
     header "Build failed"
     warn "The 'yarnrc.yml' file is not found
@@ -406,7 +393,6 @@ fail_missing_yarn_path() {
   local yarn_path="$2"
 
   if [[ "$yarn_path" == "" ]]; then
-    mcount "failures.missing-yarn-path"
     meta_set "failure" "missing-yarn-path"
     header "Build failed"
     warn "The 'yarnPath' could not be read from the 'yarnrc.yml' file
@@ -431,7 +417,6 @@ fail_missing_yarn_vendor() {
   local yarn_path="$2"
 
   if [[ ! -f "$build_dir/$yarn_path" ]]; then
-    mcount "failures.missing-yarn-vendor"
     meta_set "failure" "missing-yarn-vendor"
     header "Build failed"
     warn "Yarn was not found
@@ -457,7 +442,6 @@ fail_corepack_not_available() {
   local package_manager="$1"
   local node_version="$2"
 
-  mcount "failures.corepack-unsupported"
   meta_set "failure" "failures.corepack-unsupported"
   header "Build failed"
   warn "Corepack is not supported in Node.js $node_version
@@ -476,7 +460,6 @@ log_other_failures() {
   local log_file="$1"
 
   if grep -qP "version \`GLIBC_\d+\.\d+' not found" "$log_file"; then
-    mcount "failures.libc6-incompatibility"
     meta_set "failure" "libc6-incompatibility"
     warn "This Node.js version is not compatible with the current stack.
 
@@ -489,31 +472,26 @@ log_other_failures() {
   fi
 
   if grep -qi "sh: 1: .*: not found" "$log_file"; then
-    mcount "failures.dev-dependency-tool-not-installed"
     meta_set "failure" "dev-dependency-tool-not-installed"
     return 0
   fi
 
   if grep -qi "Failed at the bcrypt@\d.\d.\d install script" "$log_file"; then
-    mcount "failures.bcrypt-permissions-issue"
     meta_set "failure" "bcrypt-permissions-issue"
     return 0
   fi
 
   if grep -qi "Versions of @angular/compiler-cli and typescript could not be determined" "$log_file"; then
-    mcount "failures.ng-cli-version-issue"
     meta_set "failure" "ng-cli-version-issue"
     return 0
   fi
 
   if grep -qi "Cannot read property '0' of undefined" "$log_file"; then
-    mcount "failures.npm-property-zero-issue"
     meta_set "failure" "npm-property-zero-issue"
     return 0
   fi
 
   if grep -qi "npm is known not to run on Node.js v\d.\d.\d" "$log_file"; then
-    mcount "failures.npm-known-bad-version"
     meta_set "failure" "npm-known-bad-version"
     return 0
   fi
@@ -521,91 +499,76 @@ log_other_failures() {
   # "notarget No matching version found for" = npm
   # "error Couldn't find any versions for" = yarn
   if grep -q -e "notarget No matching version found for" -e "error Couldn't find any versions for" "$log_file"; then
-    mcount "failures.bad-version-for-dependency"
     meta_set "failure" "bad-version-for-dependency"
     return 0
   fi
 
   if grep -qi "You are likely using a version of node-tar or npm that is incompatible with this version of Node.js" "$log_file"; then
-    mcount "failures.node-9-npm-issue"
     meta_set "failure" "node-9-npm-issue"
     return 0
   fi
 
   if grep -qi "console.error(\`a bug known to break npm" "$log_file"; then
-    mcount "failures.old-node-new-npm"
     meta_set "failure" "old-node-new-npm"
     return 0
   fi
 
   if grep -qi "CALL_AND_RETRY_LAST Allocation failed" "$log_file"; then
-    mcount "failures.build-out-of-memory-error"
     meta_set "failure" "build-out-of-memory-error"
     return 0
   fi
 
   if grep -qi "enoent ENOENT: no such file or directory" "$log_file"; then
-    mcount "failures.npm-enoent"
     meta_set "failure" "npm-enoent"
     return 0
   fi
 
   if grep -qi "ERROR in [^ ]* from UglifyJs" "$log_file"; then
-    mcount "failures.uglifyjs"
     meta_set "failure" "uglifyjs"
     return 0
   fi
 
   # https://github.com/angular/angular-cli/issues/4551
   if grep -qi "Module not found: Error: Can't resolve '\.\/\$\$_gendir\/app\/app\.module\.ngfactory'" "$log_file"; then
-    mcount "failures.ng-cli-issue-4551"
     meta_set "failure" "ng-cli-issue-4551"
     return 0
   fi
 
   if grep -qi "Host key verification failed" "$log_file"; then
-    mcount "failures.private-git-dependency-without-auth"
     meta_set "failure" "private-git-dependency-without-auth"
     return 0
   fi
 
   # same as the next test, but isolate bcyrpt specifically
   if grep -qi "Failed at the bcrypt@\d\.\d\.\d install" "$log_file"; then
-    mcount "failures.bcrypt-failed-to-build"
     meta_set "failure" "bcrypt-failed-to-build"
     return 0
   fi
 
   if grep -qi "Failed at the [^ ]* install script" "$log_file"; then
-    mcount "failures.dependency-failed-to-build"
     meta_set "failure" "dependency-failed-to-build"
     return 0
   fi
 
   if grep -qi "Line \d*:  '.*' is not defined" "$log_file"; then
-    mcount "failures.undefined-variable-lint"
     meta_set "failure" "undefined-variable-lint"
     return 0
   fi
 
   if grep -qiE 'npm (ERR!|error) code EBADPLATFORM' "$log_file"; then
-    mcount "failures.npm-ebadplatform"
     meta_set "failure" "npm-ebadplatform"
     return 0
   fi
 
   if grep -qiE 'npm (ERR!|error) code EINVALIDPACKAGENAME' "$log_file"; then
-    mcount "failures.npm-package-name-typo"
     meta_set "failure" "npm-package-name-typo"
     return 0
   fi
 
   if grep -qiE -e 'npm (ERR!|error) code E404' -e "error An unexpected error occurred: .* Request failed \"404 Not Found\"" "$log_file"; then
-    mcount "failures.module-404"
     meta_set "failure" "module-404"
 
     if grep -qi "flatmap-stream" "$log_file"; then
-      mcount "flatmap-stream-404"
       meta_set "failure" "flatmap-stream-404"
       warn "The flatmap-stream module has been removed from the npm registry
 
@@ -621,7 +584,6 @@ log_other_failures() {
   fi
 
   if grep -qi "sh: 1: cd: can't cd to" "$log_file"; then
-    mcount "failures.cd-command-fail"
     meta_set "failure" "cd-command-fail"
     return 0
   fi
@@ -629,13 +591,11 @@ log_other_failures() {
   # Webpack Errors
 
   if grep -qi "Module not found: Error: Can't resolve" "$log_file"; then
-    mcount "failures.webpack.module-not-found"
     meta_set "failure" "webpack-module-not-found"
     return 0
   fi
 
   if grep -qi "sass-loader/lib/loader.js:3:14" "$log_file"; then
-    mcount "failures.webpack.sass-loader-error"
     meta_set "failure" "webpack-sass-loader-error"
     return 0
   fi
@@ -643,25 +603,21 @@ log_other_failures() {
   # Typescript errors
 
   if grep -qi "Property '.*' does not exist on type '.*'" "$log_file"; then
-    mcount "failures.typescript.missing-property"
     meta_set "failure" "typescript-missing-property"
     return 0
   fi
 
   if grep -qi "Property '.*' is private and only accessible within class '.*'" "$log_file"; then
-    mcount "failures.typescript.private-property"
     meta_set "failure" "typescript-private-property"
     return 0
   fi
 
   if grep -qi "error TS2307: Cannot find module '.*'" "$log_file"; then
-    mcount "failures.typescript.missing-module"
     meta_set "failure" "typescript-missing-module"
     return 0
   fi
 
   if grep -qi "error TS2688: Cannot find type definition file for '.*'" "$log_file"; then
-    mcount "failures.typescript.missing-type-definition"
     meta_set "failure" "typescript-missing-type-definition"
     return 0
   fi
@@ -669,7 +625,6 @@ log_other_failures() {
   # [^/C] means that the error is not for a file expected to be within the project
   # Ex: Error: Cannot find module 'chalk'
   if grep -q "Error: Cannot find module '[^/C\.]" "$log_file"; then
-    mcount "failures.missing-module.npm"
     meta_set "failure" "missing-module-npm"
     return 0
   fi
@@ -677,7 +632,6 @@ log_other_failures() {
   # / means that the error is for a file expected within the local project
   # Ex: Error: Cannot find module '/tmp/build_{hash}/...'
   if grep -q "Error: Cannot find module '/" "$log_file"; then
-    mcount "failures.missing-module.local-absolute"
     meta_set "failure" "missing-module-local-absolute"
     return 0
   fi
@@ -685,7 +639,6 @@ log_other_failures() {
   # /. means that the error is for a file that's a relative require
   # Ex: Error: Cannot find module './lib/utils'
   if grep -q "Error: Cannot find module '\." "$log_file"; then
-    mcount "failures.missing-module.local-relative"
     meta_set "failure" "missing-module-local-relative"
     return 0
   fi
@@ -693,21 +646,83 @@ log_other_failures() {
   # [^/C] means that the error is not for a file expected to be found on a C: drive
   # Ex: Error: Cannot find module 'C:\Users...'
   if grep -q "Error: Cannot find module 'C:" "$log_file"; then
-    mcount "failures.missing-module.local-windows"
     meta_set "failure" "missing-module-local-windows"
     return 0
   fi
 
   # matches the subsequent lines of a stacktrace
   if grep -q 'at [^ ]* \([^ ]*:\d*\d*\)' "$log_file"; then
-    mcount "failures.unknown-stacktrace"
     meta_set "failure" "unknown-stacktrace"
     return 0
   fi
 
+  # checksum errors
+  if grep -q "Checksum validation failed" "$log_file"; then
+    meta_set "failure" "checksum-validation-failed"
+    return 0
+  fi
+
+  if grep -q "Unsupported checksum" "$log_file"; then
+    meta_set "failure" "unsupported-checksum"
+    return 0
+  fi
+
+  if grep -q "npm error code 128" "$log_file" && grep -q "An unknown git error occurred" "$log_file"; then
+    meta_set "failure" "npm-install-git-dependency"
+    warn "npm Git dependency error (code 128)
+
+       This error indicates an issue related to Git operations when attempting to install
+       an npm package specified as a Git dependency in \`package.json\`.
+
+       The error details above should contain more information about which package is causing the
+       issue during dependency installation as well as the specific problem that Git encountered.
+    "
+    fail
+  fi
+
+  if grep -q "npm error code EUSAGE" "$log_file"; then
+    if grep -q "Please update your lock file" "$log_file"; then
+      meta_set "failure" "npm-lockfile-out-of-sync"
+      warn "npm lockfile is not in sync
+
+       This error occurs when the contents of \`package.json\` contains a different
+       set of dependencies that the contents of \`package-lock.json\`. This can happen
+       when a package is added, modified, or removed but the lockfile was not updated.
+
+       To fix this, run \`npm install\` locally in your app directory to regenerate the
+       lockfile, commit the changes to \`package-lock.json\`, and redeploy.
+      " "https://devcenter.heroku.com/articles/troubleshooting-node-deploys#make-sure-that-the-lockfile-is-up-to-date"
+      fail
+    fi
+  fi
+
+  # For now, only capture this error if it doesn't happen during the pruning step. This error shouldn't make
+  # it past the initial `npm install` (but it can) and it would be nice to see when this type of error slips through.
+  if grep -q "npm error code ERESOLVE" "$log_file" && [[ "$(meta_get "build-step")" != "prune-dependencies" ]]; then
+    meta_set "failure" "npm-peer-dependency-conflict"
+    warn "Conflict detected in requested npm dependencies
+
+       An \`ERESOLVE\` error during installation of npm dependencies means your app contains two or more conflicting
+       versions of the same dependency. This is typically caused by peer dependency requirements of requested dependencies.
+       The error above should contain more detail about which dependencies are in conflict. Use tools like \`npm info <package-name>\`
+       to get details about a package, including it's peer dependencies.
+
+       The best way to address this issue is to regularly update your dependency versions to prevent conflicts from happening.
+
+       If that is not possible, a temporary solution is to set a config var with \`heroku set config npm_config_legacy_peer_deps=true\`.
+       This should be used with caution as ignoring peer dependency conflicts can lead to unexpected runtime errors.
+    "
+    fail
+  fi
+
   # If we've made it this far it's not an error we've added detection for yet
-  meta_set "failure" "unknown"
-  mcount "failures.unknown"
+  # so classify by build step (if set) or default to unknown
+  build_step=$(meta_get "build-step")
+  if [[ -n "$build_step" ]]; then
+    meta_set "failure" "unknown-$build_step-error"
+  else
+    meta_set "failure" "unknown"
+  fi
 }
 
 warning() {
@@ -738,13 +753,10 @@ warn_node_engine() {
   local node_engine=${1:-}
   if [ "$node_engine" == "" ]; then
     warning "Node version not specified in package.json" "https://devcenter.heroku.com/articles/nodejs-support#specifying-a-node-js-version"
-    mcount 'warnings.node.unspecified'
   elif [ "$node_engine" == "*" ]; then
     warning "Dangerous semver range (*) in engines.node" "https://devcenter.heroku.com/articles/nodejs-support#specifying-a-node-js-version"
-    mcount 'warnings.node.star'
   elif [ "${node_engine:0:1}" == ">" ]; then
     warning "Dangerous semver range (>) in engines.node" "https://devcenter.heroku.com/articles/nodejs-support#specifying-a-node-js-version"
-    mcount 'warnings.node.greater'
   fi
 }
 
@@ -752,7 +764,6 @@ warn_prebuilt_modules() {
   local build_dir=${1:-}
   if [ -e "$build_dir/node_modules" ]; then
     warning "node_modules checked into source control" "https://devcenter.heroku.com/articles/node-best-practices#only-git-the-important-bits"
-    mcount 'warnings.modules.prebuilt'
     meta_set "checked-in-node-modules" "true"
   else
     meta_set "checked-in-node-modules" "false"
@@ -763,7 +774,6 @@ warn_missing_package_json() {
   local build_dir=${1:-}
   if ! [ -e "$build_dir/package.json" ]; then
     warning "No package.json found"
-    mcount 'warnings.no-package'
   fi
 }
 
@@ -774,7 +784,6 @@ warn_old_npm() {
 
   if [ "$(npm_version_major)" -lt "2" ]; then
     warning "This version of npm ($npm_version) has several known issues. Please update your npm version in package.json." "https://devcenter.heroku.com/articles/nodejs-support#specifying-an-npm-version"
-    mcount 'warnings.npm.old'
   fi
 }
 
@@ -787,7 +796,6 @@ warn_old_npm_lockfile() {
   if $npm_lock && [ "$(npm_version_major)" -lt "5" ]; then
     warn "This version of npm ($npm_version) does not support package-lock.json. Please
        update your npm version in package.json." "https://devcenter.heroku.com/articles/nodejs-support#specifying-an-npm-version"
-    mcount 'warnings.npm.old-and-lockfile'
   fi
 }
 
@@ -795,15 +803,12 @@ warn_untracked_dependencies() {
   local log_file="$1"
   if grep -qi 'gulp: not found' "$log_file" || grep -qi 'gulp: command not found' "$log_file"; then
     warning "Gulp may not be tracked in package.json" "https://devcenter.heroku.com/articles/troubleshooting-node-deploys#ensure-you-aren-t-relying-on-untracked-dependencies"
-    mcount 'warnings.modules.untracked.gulp'
   fi
   if grep -qi 'grunt: not found' "$log_file" || grep -qi 'grunt: command not found' "$log_file"; then
     warning "Grunt may not be tracked in package.json" "https://devcenter.heroku.com/articles/troubleshooting-node-deploys#ensure-you-aren-t-relying-on-untracked-dependencies"
-    mcount 'warnings.modules.untracked.grunt'
   fi
   if grep -qi 'bower: not found' "$log_file" || grep -qi 'bower: command not found' "$log_file"; then
     warning "Bower may not be tracked in package.json" "https://devcenter.heroku.com/articles/troubleshooting-node-deploys#ensure-you-aren-t-relying-on-untracked-dependencies"
-    mcount 'warnings.modules.untracked.bower'
   fi
 }
 
@@ -811,7 +816,6 @@ warn_angular_resolution() {
   local log_file="$1"
   if grep -qi 'Unable to find suitable version for angular' "$log_file"; then
     warning "Bower may need a resolution hint for angular" "https://github.com/bower/bower/issues/1746"
-    mcount 'warnings.angular.resolution'
   fi
 }
 
@@ -822,12 +826,10 @@ warn_missing_devdeps() {
 
   if grep -qi 'cannot find module' "$log_file"; then
     warning "A module may be missing from 'dependencies' in package.json" "https://devcenter.heroku.com/articles/troubleshooting-node-deploys#ensure-you-aren-t-relying-on-untracked-dependencies"
-    mcount 'warnings.modules.missing'
     if [ "$NPM_CONFIG_PRODUCTION" == "true" ]; then
       dev_deps=$(read_json "$build_dir/package.json" ".devDependencies")
       if [ "$dev_deps" != "" ]; then
         warning "This module may be specified in 'devDependencies' instead of 'dependencies'" "https://devcenter.heroku.com/articles/nodejs-support#devdependencies"
-        mcount 'warnings.modules.devdeps'
       fi
     fi
   fi
@@ -842,7 +844,6 @@ warn_no_start() {
     if [ "$start_script" == "" ]; then
       if ! [ -e "$build_dir/server.js" ]; then
         warn "This app may not specify any way to start a node process" "https://devcenter.heroku.com/articles/nodejs-support#default-web-process-type"
-        mcount 'warnings.unstartable'
       fi
     fi
   fi
@@ -852,7 +853,6 @@ warn_econnreset() {
   local log_file="$1"
   if grep -qi 'econnreset' "$log_file"; then
     warning "ECONNRESET issues may be related to npm versions" "https://github.com/npm/registry/issues/10#issuecomment-217141066"
-    mcount 'warnings.econnreset'
   fi
 }
 
@@ -864,7 +864,6 @@ warn_unmet_dep() {
 
   if grep -qi 'unmet dependency' "$log_file" || grep -qi 'unmet peer dependency' "$log_file"; then
     warn "Unmet dependencies don't fail $package_manager install but may cause runtime issues" "https://github.com/npm/npm/issues/7494"
-    mcount 'warnings.modules.unmet'
   fi
 }
 
@@ -880,7 +879,6 @@ warn_multiple_yarn_version() {
        If both fields are present, then \"packageManager\" will take precedence and \"$package_manager\" will be installed.
 
        To ensure we install the version of Yarn you want, remove one of these fields."
-  mcount 'warnings.yarn.multiple-version'
 }
 
 warn_yarn_release_script_with_package_manager() {
@@ -900,7 +898,6 @@ warn_yarn_release_script_with_package_manager() {
        To ensure we install the version of Yarn you want, choose only one of the following actions:
        - Remove the \"packageManager\" field from package.json
        - Remove the \"yarnPath\" configuration from .yarnrc.yml and delete the vendored release at \"$release_script\""
-  mcount 'warnings.yarn.release-script-with-package-manager'
 }
 
 fail_corepack_install_invalid_hash() {
@@ -909,7 +906,6 @@ fail_corepack_install_invalid_hash() {
   package_manager_version=$(echo "$package_manager" | cut -d "@" -f 2 | cut -d "+" -f 1)
   package_manager_hash=$(echo "$package_manager" | cut -d "@" -f 2 | cut -d "+" -f 2)
 
-  mcount "failures.corepack-install.hash"
   meta_set "failure" "failures.corepack-install.hash"
   header "Build failed"
   warn "Error installing $package_manager_name version $package_manager_version
@@ -930,7 +926,6 @@ fail_corepack_install_invalid_version() {
   package_manager_name=$(echo "$package_manager" | cut -d "@" -f 1)
   package_manager_version=$(echo "$package_manager" | cut -d "@" -f 2 | cut -d "+" -f 1)
 
-  mcount "failures.corepack-install.version"
   meta_set "failure" "failures.corepack-install.version"
   header "Build failed"
   warn "Error installing $package_manager_name version $package_manager_version
@@ -961,7 +956,6 @@ warn_default_pnpm_version_used() {
        > corepack use pnpm@{your_preferred_version}
 
        Then commit and push the changes to package.json."
-  mcount 'warnings.pnpm.default-version'
 }
 
 warn_multiple_pnpm_version() {
@@ -976,7 +970,6 @@ warn_multiple_pnpm_version() {
        If both fields are present, then \"packageManager\" will take precedence and \"$package_manager\" will be installed.
 
        To ensure we install the version of pnpm you want, remove one of these fields."
-  mcount 'warnings.pnpm.multiple-version'
 }
 
 warn_skipping_unsafe_pnpm_prune() {
@@ -993,7 +986,6 @@ warn_skipping_unsafe_pnpm_prune() {
 
        Since pruning can't be done safely for your build, it will be skipped. To fix this you
        must upgrade your version of pnpm to 8.15.6 or higher."
-  mcount 'warnings.pnpm.unsafe-prune'
 }
 
 warn_about_node_version_22_5_0() {
@@ -1005,7 +997,6 @@ warn_about_node_version_22_5_0() {
        on Heroku, we recommend avoiding this release version until a fix has been released by 
        pinning to an earlier version of Node.js (e.g.; 22.4.1).
   " "https://github.com/nodejs/node/pull/53934"
-  mcount 'warnings.node.22-5-0'
 }
 
 fail_conflicting_package_manager_metadata() {
@@ -1043,7 +1034,6 @@ fail_conflicting_package_manager_metadata() {
 
   # was there more than one package manager found?
   if (( "${#package_managers[@]}" > 1 )); then
-    mcount "failures.multiple-package-managers"
     meta_set "failure" "multiple-package-managers"
     header "Build failed"
     warn "Multiple package managers declared in package.json

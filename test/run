@@ -4,15 +4,18 @@
 testNpmCi() {
   local log_file cache
   log_file=$(mktemp)
-  cache=$(mktmpdir)
+  build_dir=$(mktmpdir)
+  cache_dir=$(mktmpdir)
+  env_dir=$(mktmpdir)
 
-  BUILDPACK_LOG_FILE="$log_file" compile "node-14-npm-ci" "$cache"
+  BUILDPACK_LOG_FILE="$log_file" compile "node-14-npm-ci" "$cache_dir" "$env_dir" "$build_dir"
 
    # make sure that build scripts are being called
   assertCaptured "heroku-prebuild script"
   assertCaptured "build script"
   assertCaptured "postinstall script"
   assertCapturedSuccess
+  assertFileExists "$build_dir/.heroku/node/bin/npm"
 
    # test logging
   assertFileContains "use-npm-ci=true" "$log_file"
@@ -21,7 +24,7 @@ testNpmCi() {
 
    # test re-using the cache
   echo "" > "$log_file"
-  BUILDPACK_LOG_FILE="$log_file" compile "node-14-npm-ci" "$cache"
+  BUILDPACK_LOG_FILE="$log_file" compile "node-14-npm-ci" "$cache_dir"
   assertCapturedSuccess
 }
 
@@ -200,9 +203,11 @@ testCustomNodeBinaryURL() {
   cache=$(mktmpdir)
   env_dir=$(mktmpdir)
 
-  echo "testurl" > $env_dir/NODE_BINARY_URL
+  echo "https://nodejs.org/download/release/v14.21.3/node-v14.21.3-linux-x64.tar.gz" > $env_dir/NODE_BINARY_URL
   compile "node-14" $cache $env_dir
-  assertCaptured "from testurl"
+  assertCaptured "from https://nodejs.org/download/release/v14.21.3/node-v14.21.3-linux-x64.tar.gz"
+  assertNotCaptured "Validating checksum"
+  assertCapturedSuccess
 }
 
 testDisableCache() {
@@ -323,15 +328,15 @@ testCacheWithPrebuild() {
 
 testYarnSemver() {
   compile "yarn-semver"
-  assertCaptured "Resolving yarn version ~0.28"
-  assertCaptured "installing yarn (0.28."
+  assertCaptured "Downloading and installing yarn (~0.28"
+  assertCaptured "Installed yarn 0.28."
   assertCapturedSuccess
 }
 
 testOldYarn() {
   compile "yarn-old-deprecated-version"
-  assertCaptured "Resolving yarn version ~0.16"
-  assertCaptured "installing yarn (0.16."
+  assertCaptured "Downloading and installing yarn (~0.16"
+  assertCaptured "Installed yarn 0.16."
   assertCaptured "error \`install\` has been replaced with \`add\`"
   assertCaptured "Outdated Yarn version"
   assertCaptured "Your application is specifying a requirement on an old version of Yarn"
@@ -346,27 +351,47 @@ testYarnV1Semver() {
   assertCapturedSuccess
 }
 
+testYarnV1SemverComplex() {
+  compile "yarn-v1-semver-complex"
+  assertCaptured "Downloading and installing yarn (>=1 <2)"
+  assertCaptured "Installed yarn 1."
+  assertCapturedSuccess
+}
+
+testYarnV2SemverEdgeCase() {
+  compile "yarn-v2-semver-edge-case"
+  assertCaptured "Downloading and installing yarn (>=2 <3)"
+  assertCaptured "Using yarn 2."
+  assertCapturedSuccess
+}
+
 testYarnInvalid() {
   compile "yarn-invalid"
-  assertCaptured "Resolving yarn version 0.171"
-  assertCaptured "Could not find Yarn version corresponding to version requirement: 0.171"
-  assertCaptured "No matching version found for Yarn: 0.171"
+  assertCaptured "Downloading and installing yarn (0.171"
+  assertCaptured "npm error code ETARGET"
+  assertCaptured "Unable to install yarn 0.171"
   assertCaptured "https://help.heroku.com/8MEL050H"
+  assertCaptured "https://help.heroku.com/0ZIOF3ST"
   assertCapturedError
 }
 
 testYarnSemverInvalid() {
   compile "yarn-invalid-semver"
-  assertCaptured "Resolving yarn version 0.17q"
-  assertCaptured "Error: Invalid semantic version \"0.17q\""
-  assertCaptured "Invalid semver requirement"
+  assertCaptured "Downloading and installing yarn (0.17q"
+  assertCaptured "npm error code ETARGET"
+  assertCaptured "Unable to install yarn 0.17q"
+  assertCaptured "https://help.heroku.com/8MEL050H"
   assertCaptured "https://help.heroku.com/0ZIOF3ST"
   assertCapturedError
 }
 
 testYarnEngine() {
-  compile "yarn-engine"
+  build_dir=$(mktmpdir)
+  cache_dir=$(mktmpdir)
+  env_dir=$(mktmpdir)
+  compile "yarn-engine" "$cache_dir" "$env_dir" "$build_dir"
   assertCaptured "installing yarn (1.4.0)"
+  assertFileExists "$build_dir/.heroku/node/bin/yarn"
   assertCapturedSuccess
 }
 
@@ -806,7 +831,10 @@ testYarn4() {
 }
 
 testYarn4WithCorepackEnabled() {
-  compile "yarn-4-with-corepack"
+  build_dir=$(mktmpdir)
+  cache_dir=$(mktmpdir)
+  env_dir=$(mktmpdir)
+  compile "yarn-4-with-corepack" "$cache_dir" "$env_dir" "$build_dir"
   assertCaptured "engines.yarn (package.json):   unspecified (use default)"
   assertCaptured "packageManager (package.json): yarn@4.1.1"
   assertCaptured "Installing yarn@4.1.1 via corepack"
@@ -816,6 +844,7 @@ testYarn4WithCorepackEnabled() {
   assertCaptured "Running 'yarn heroku prune'"
   assertCaptured "- @types/node@npm:16.11.26, uuid@npm:9.0.0"
   assertCapturedSuccess
+  assertFileExists "$build_dir/.heroku/node/bin/yarn"
 }
 
 testYarn4WithCorepackAndEngine() {
@@ -1443,31 +1472,33 @@ testPluginInstallationUnsupportedNodeRunTime() {
 
 testMemoryMetrics() {
   env_dir=$(mktmpdir)
-  local metrics_log=$(mktemp)
-  echo "$metrics_log" > $env_dir/BUILDPACK_LOG_FILE
+  metrics_log=$(mktemp)
+  echo "$metrics_log" > "$env_dir"/BUILDPACK_LOG_FILE
 
-  compile "pre-post-build-scripts" "$(mktmpdir)" $env_dir
-  assertFileContains "measure#buildpack.nodejs.exec.install-node-binary.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.install-npm-binary.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.heroku-prebuild-script.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.heroku-prebuild-script.memory=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.npm-install.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.npm-install.memory=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.heroku-postbuild-script.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.heroku-postbuild-script.memory=" $metrics_log
+  compile "pre-post-build-scripts" "$(mktmpdir)" "$env_dir"
+
+  assertFileContains "install-node-binary-time=" "$metrics_log"
+  assertFileContains "install-npm-binary-time=" "$metrics_log"
+  assertFileContains "heroku-prebuild-script-time=" "$metrics_log"
+  assertFileContains "heroku-prebuild-script-memory=" "$metrics_log"
+  assertFileContains "npm-install-time=" "$metrics_log"
+  assertFileContains "npm-install-memory=" "$metrics_log"
+  assertFileContains "heroku-postbuild-script-time=" "$metrics_log"
+  assertFileContains "heroku-postbuild-script-memory=" "$metrics_log"
 
   # erase the metrics log
-  echo "" > $metrics_log
-  compile "yarn" "$(mktmpdir)" $env_dir
-  assertFileContains "measure#buildpack.nodejs.exec.install-node-binary.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.install-yarn-binary.time=" $metrics_log
-  assertFileContains "measure#buildpack.nodejs.exec.yarn-install.memory=" "$metrics_log"
-  assertFileContains "measure#buildpack.nodejs.exec.yarn-install.time=" "$metrics_log"
+  echo "" > "$metrics_log"
+  compile "yarn" "$(mktmpdir)" "$env_dir"
+
+  assertFileContains "install-node-binary-time=" "$metrics_log"
+  assertFileContains "install-yarn-binary-time=" "$metrics_log"
+  assertFileContains "yarn-install-memory=" "$metrics_log"
+  assertFileContains "yarn-install-time=" "$metrics_log"
   # this fixture does not have pre or post-build scripts
-  assertFileNotContains "measure#buildpack.nodejs.exec.heroku-prebuild-script.time=" $metrics_log
-  assertFileNotContains "measure#buildpack.nodejs.exec.heroku-prebuild-script.memory=" $metrics_log
-  assertFileNotContains "measure#buildpack.nodejs.exec.heroku-postbuild-script.time=" $metrics_log
-  assertFileNotContains "measure#buildpack.nodejs.exec.heroku-postbuild-script.memory=" $metrics_log
+  assertFileNotContains "heroku-prebuild-script-time=" "$metrics_log"
+  assertFileNotContains "heroku-prebuild-script-memory=" "$metrics_log"
+  assertFileNotContains "heroku-postbuild-script-time=" "$metrics_log"
+  assertFileNotContains "heroku-postbuild-script-memory=" "$metrics_log"
 }
 
 testBuildMetaData() {
@@ -1515,8 +1546,7 @@ testBuildMetaData() {
   assertFileContains "save-cache-time=" $log_file
 
   # resolve-version tests
-  cat $log_file
-  assertFileContainsMatch 'resolve-v2-node="10.[[:digit:]]+.[[:digit:]]+ https://heroku-nodebin.s3.us-east-1.amazonaws.com/node/release/linux-x64/node-v10.[[:digit:]]+.[[:digit:]]+-linux-x64.tar.gz"' $log_file
+  assertFileContainsMatch 'resolve-v2-node="10.[[:digit:]]+.[[:digit:]]+ https://nodejs.org/download/release/v10.[[:digit:]]+.[[:digit:]]+/node-v10.[[:digit:]]+.[[:digit:]]+-linux-x64.tar.gz sha256 [[:xdigit:]]+"' $log_file
 
   # erase the log file
   echo "" > $log_file
@@ -1529,9 +1559,6 @@ testBuildMetaData() {
   assertFileContains "install-yarn-binary-memory=" $log_file
   assertFileContains "install-yarn-binary-time=" $log_file
   assertFileContains "node-build-success=true" $log_file
-
-  # resolve-version tests
-  assertFileContainsMatch 'resolve-v2-yarn="1.[[:digit:]]+.[[:digit:]]+ https://heroku-nodebin.s3.us-east-1.amazonaws.com/yarn/release/yarn-v1.[[:digit:]]+.[[:digit:]]+.tar.gz"' $log_file
 }
 
 testWorkspaceMetaData() {
@@ -1618,21 +1645,44 @@ testBinReportSuccess() {
   compile_and_report "node-14"
   assertCapturedSuccess
 
-  assertCaptured "package_manager: \"npm\""
-  assertCaptured "node_version: \"v14"
-  assertCaptured "node_version_request: \"14.x\""
+  # check for all the fields that should be included in this report
+  assertCaptured "stack: '$STACK'"
+  assertCaptured "node_version: 'v14.21.3'"
+  assertCaptured "npm_version: '6.14.18'"
+  assertCaptured "corepack_version: '0.15.1'"
+  assertCaptured "node_version_request: '14.x'"
+  assertCaptured "start_script: 'node foo.js'"
+  assertCaptured "build_script: 'echo \"escaping - test if it''s working as expected\"'"
+  assertCaptured "package_manager: 'npm'"
+  assertCaptured "build_step: 'finished'"
+  assertCaptured "cache_status: 'not-found'"
+  assertCaptured "resolve_v2_node: '14.21.3 https://nodejs.org/download/release/v14.21.3/node-v14.21.3-linux-x64.tar.gz sha256 bef2685d9469058c1229cc7789e171861044fe3f70316ec744e9bf3609cd45ed'"
+  assertCaptured "procfile_with_web_process: false"
+  assertCaptured "procfile_used: false"
+  assertCaptured "build_script_time: "
+  assertCaptured "build_script_memory: "
   assertCaptured "lock_file: false"
-  assertCaptured "start_script: \"node foo.js\""
+  assertCaptured "uses_workspaces: false"
   assertCaptured "num_project_files: 1"
-  assertCaptured "cache_status: \"not-found\""
-  assertCaptured "build_step: \"finished\""
-  assertCaptured "build_time:"
-  assertCaptured "install_node_binary_time:"
+  assertCaptured "node_modules_size: 0"
+  assertCaptured "use_npm_ci: false"
+  assertCaptured "build_time: "
+  assertCaptured "skipped_prune: false"
+  assertCaptured "custom_cache_dirs: false"
+  assertCaptured "install_node_binary_time: "
+  assertCaptured "install_node_binary_memory: "
+  assertCaptured "install_npm_binary_time: "
+  assertCaptured "install_npm_binary_memory: "
+  assertCaptured "restore_cache_time: "
+  assertCaptured "save_cache_time: "
+  assertCaptured "npm_install_time: "
+  assertCaptured "npm_install_memory: "
+  assertCaptured "npm_prune_time: "
+  assertCaptured "npm_prune_memory: "
 
-  # there are no scripts in the fixture
-  assertNotCaptured "build_script:"
-  assertNotCaptured "heroku_postbuild_script:"
+  # these fields are blank, so they should be excluded from the report
   assertNotCaptured "heroku_prebuild_script:"
+  assertNotCaptured "heroku_postbuild_script:"
 }
 
 testBinReportScriptsWithQuotes() {
@@ -1640,15 +1690,15 @@ testBinReportScriptsWithQuotes() {
   assertCapturedSuccess
 
   # quotes and escaped quotes are tricky, but should be escaped correctly
-  assertCaptured "start_script: \"\\\"no closing quote\""
-  assertCaptured "build_script: \"concurrently \\\"npm run build-server\\\" npm run build-client\""
-  assertCaptured "heroku_postbuild_script: \"if [ -z \\\"\${CI}\\\" ]; then yarn build-assets; fi\""
-  assertCaptured "postinstall_script: \"if [ \\\"\${NODE_ENV}\\\" = \\\"staging\\\" ]; then env ASSETS_ENV=production gulp assets:build; else echo \\\"Skipped heroku-postbuild\\\"; fi\""
+  assertCaptured "start_script: '\"no closing quote'"
+  assertCaptured "build_script: 'concurrently \"npm run build-server\" npm run build-client'"
+  assertCaptured "heroku_postbuild_script: 'if [ -z \"\${CI}\" ]; then yarn build-assets; fi'"
+  assertCaptured "postinstall_script: 'if [ \"\${NODE_ENV}\" = \"staging\" ]; then env ASSETS_ENV=production gulp assets:build; else echo \"Skipped heroku-postbuild\"; fi'"
 }
 
 testBinReportYarn() {
   compile_and_report "yarn"
-  assertCaptured "package_manager: \"yarn\""
+  assertCaptured "package_manager: 'yarn'"
 }
 
 testNpmCiCaching() {
@@ -1772,7 +1822,10 @@ testCorepackNpmRegistryKeyFix() {
 # PNPM
 
 testPnpm7Pnp() {
-  compile "pnpm-7-pnp"
+  build_dir=$(mktmpdir)
+  cache_dir=$(mktmpdir)
+  env_dir=$(mktmpdir)
+  compile "pnpm-7-pnp" "$cache_dir" "$env_dir" "$build_dir"
   assertCaptured "engines.pnpm (package.json):   unspecified (use default)"
   assertCaptured "packageManager (package.json): pnpm@7.32.3"
   assertCaptured "Installing pnpm@7.32.3 via corepack"
@@ -1784,6 +1837,7 @@ testPnpm7Pnp() {
   assertCaptured "heroku-build"
   assertCaptured "heroku-cleanup"
   assertCapturedSuccess
+  assertFileExists "$build_dir/.heroku/node/bin/pnpm"
 }
 
 testPnpm8Hoist() {
@@ -1810,12 +1864,16 @@ testPnpm8Nuxt() {
 }
 
 testPnpmEngine() {
-  compile "pnpm-engine"
+  build_dir=$(mktmpdir)
+  cache_dir=$(mktmpdir)
+  env_dir=$(mktmpdir)
+  compile "pnpm-engine" "$cache_dir" "$env_dir" "$build_dir"
   assertCaptured "engines.pnpm (package.json):   8.x"
   assertCaptured "Installing pnpm@8.x via corepack"
   assertCaptured "Using pnpm 8"
   assertCaptured "Running 'pnpm install' with pnpm-lock.yaml"
   assertCapturedSuccess
+  assertFileExists "$build_dir/.heroku/node/bin/pnpm"
 }
 
 testPnpmBadEngine() {
@@ -2057,6 +2115,60 @@ testConflictingPackageManagerMetadata() {
   assertCapturedError
 }
 
+# Error classifications
+
+testErrorPrebuildScript() {
+  compile_and_report "error-prebuild-script"
+  assertCaptured "failure: 'unknown-prebuild-script-error'"
+}
+
+testErrorBuildScript() {
+  compile_and_report "error-build-script"
+  assertCaptured "failure: 'unknown-build-script-error'"
+}
+
+testErrorPostbuildScript() {
+  compile_and_report "error-postbuild-script"
+  assertCaptured "failure: 'unknown-build-script-error'"
+}
+
+testErrorCleanupScript() {
+  compile_and_report "error-cleanup-script"
+  assertCaptured "failure: 'unknown-cleanup-script-error'"
+}
+
+testErrorNpmLockfileOutOfSync() {
+  local log_file
+  log_file=$(mktemp)
+  BUILDPACK_LOG_FILE="$log_file" compile "error-npm-lockfile-out-of-sync"
+  assertCaptured "npm lockfile is not in sync"
+  assertCaptured "https://devcenter.heroku.com/articles/troubleshooting-node-deploys#make-sure-that-the-lockfile-is-up-to-date"
+  assertCapturedError
+  assertFileContains "failure=npm-lockfile-out-of-sync" "$log_file"
+}
+
+testErrorNpmGitDependency() {
+  log_file=$(mktemp)
+  BUILDPACK_LOG_FILE="$log_file" compile "error-npm-git-error"
+  assertCaptured "npm Git dependency error (code 128)"
+  assertCapturedError
+  assertFileContains "failure=npm-install-git-dependency" "$log_file"
+}
+
+testErrorPeerDependencyConflict() {
+  log_file=$(mktemp)
+  BUILDPACK_LOG_FILE="$log_file" compile "error-npm-peer-dependency-conflict"
+  assertCaptured "Conflict detected in requested npm dependencies"
+  assertCapturedError
+  assertFileContains "failure=npm-peer-dependency-conflict" "$log_file"
+}
+
+testErrorPrune() {
+  compile_and_report "error-prune"
+  assertCaptured "failure: 'unknown-prune-dependencies-error'"
+  assertCaptured "lock_file: false"
+}
+
 # Utils
 
 pushd "$(dirname 0)" >/dev/null
@@ -2094,10 +2206,21 @@ detect() {
   capture ${bp_dir}/bin/detect ${compile_dir}
 }
 
+# $1 - The fixture to compile
+# $2 - The cache directory (defaults to a new temp directory)
+# $3 - The env directory (defaults to a new temp directory)
+# $4 - the compile directory (defaults to a new temp directory)
+#
+# Note - It would be nice if the compile directory wasn't the 4th arg to this function so that
+#        the expected arguments would line up with the buildpack's compile invocation of
+#        `compile "$BUILD_DIR" "$CACHE_DIR" "$ENV_DIR"` but this would require all existing tests
+#        to reorder their arguments as allowing a configurable compile directory was added last.
 compile() {
   default_process_types_cleanup
+
   bp_dir=$(mktmpdir)
-  compile_dir=$(mktmpdir)
+  compile_dir=${4:-$(mktmpdir)}
+
   cp -a "$(pwd)"/* ${bp_dir}
   cp -a ${bp_dir}/test/fixtures/$1/. ${compile_dir}
 

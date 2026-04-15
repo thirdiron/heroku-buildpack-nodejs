@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+- Fix escaping for buildpack metrics. ([#1451](https://github.com/heroku/heroku-buildpack-nodejs/pull/1451))
+- Remove calls to unsupported metrics format (i.e.; `mcount`, `mtime`, `mmeasure`) ([#1454](https://github.com/heroku/heroku-buildpack-nodejs/pull/1454)) 
+
+## [v303] - 2025-08-05
+
+- Fix for checksum validation error when `NODE_BINARY_URL` is used. ([#1447](https://github.com/heroku/heroku-buildpack-nodejs/pull/1447))
+
+## [v302] - 2025-08-01
+
+- Added Node.js 24.5.0 (linux-amd64)
+- Added Node.js 22.18.0 (linux-amd64)
+
+## [v301] - 2025-07-31
+
+- Source Node.js binaries from upstream instead of mirror. ([#1441](https://github.com/heroku/heroku-buildpack-nodejs/pull/1441))
+
+## [v300] - 2025-07-16
+
+- Added Node.js version 24.4.1.
+- Added Node.js version 22.17.1.
+- Added Node.js version 20.19.4.
+
+## [v299] - 2025-07-09
+
+- Added Node.js version 24.4.0.
+- Handle complex Yarn engine requirements. ([#1433](https://github.com/heroku/heroku-buildpack-nodejs/pull/1433))
+
+## [v298] - 2025-06-25
+
+- Added Node.js version 24.3.0.
+- Added Node.js version 22.17.0.
+
+## [v297] - 2025-06-23
+
+- Added Node.js version 20.19.3.
+
+## [v296] - 2025-06-12
+
+- Remove inventory-based resolver for Yarn. Customers may notice the location of the Yarn binary is now at `/app/.heroku/node/bin/yarn` where, previously, it was found at `/app/.heroku/yarn/bin/yarn`. ([#1420](https://github.com/heroku/heroku-buildpack-nodejs/pull/1420))
+- Added Node.js version 24.2.0.
 
 ## [v295] - 2025-05-21
 
@@ -1070,7 +1110,15 @@ Accepts `cacheDirectories` array in package.json to override default `node_modul
 
 - Documented at https://devcenter.heroku.com/articles/nodejs-support#cache-behavior
 
-[unreleased]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v295...main
+[unreleased]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v303...main
+[v303]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v302...v303
+[v302]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v301...v302
+[v301]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v300...v301
+[v300]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v299...v300
+[v299]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v298...v299
+[v298]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v297...v298
+[v297]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v296...v297
+[v296]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v295...v296
 [v295]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v294...v295
 [v294]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v293...v294
 [v293]: https://github.com/heroku/heroku-buildpack-nodejs/compare/v292...v293
